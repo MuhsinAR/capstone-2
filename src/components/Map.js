@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import axios from 'axios';
-import { useUser } from './UserContext'; // Import the useUser hook
 
 const Map = () => {
     const [userLocation, setUserLocation] = useState(null);
@@ -17,23 +16,19 @@ const Map = () => {
     });
     const mapRef = useRef(null);
     const tempMarkerRef = useRef(null);
-    const initialCoordinatesRef = useRef(null);
     const [mapLoaded, setMapLoaded] = useState(false);
     const [reloadMap, setReloadMap] = useState(false);
-    const { user } = useUser(); // Destructure user from useUser hook
+    const [isAdmin, setIsAdmin] = useState(false);
 
     const fetchUserLocation = useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('http://localhost:3003/api/users/zipcode', {
+            const response = await axios.get('http://localhost:3003/api/users/zipcode', {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            if (!response.ok) {
-                throw new Error('Failed to fetch user location');
-            }
-            const data = await response.json();
+            const data = response.data;
             return data;
         } catch (error) {
             console.error('Error fetching user location:', error);
@@ -43,11 +38,8 @@ const Map = () => {
 
     const fetchCoordinates = useCallback(async (zipcode) => {
         try {
-            const response = await fetch(`https://api.zippopotam.us/us/${zipcode}`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch coordinates');
-            }
-            const data = await response.json();
+            const response = await axios.get(`https://api.zippopotam.us/us/${zipcode}`);
+            const data = response.data;
             const latitude = parseFloat(data.places[0]['latitude']);
             const longitude = parseFloat(data.places[0]['longitude']);
             return { latitude, longitude };
@@ -65,14 +57,25 @@ const Map = () => {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            if (response.data && Array.isArray(response.data.locations)) {
-                return response.data.locations;
-            } else {
-                return [];
-            }
+            return response.data.locations;
         } catch (error) {
             console.error('Error fetching locations:', error);
             return [];
+        }
+    }, []);
+
+    const fetchUserDetails = useCallback(async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get('http://localhost:3003/api/users/me', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            const user = response.data.user;
+            setIsAdmin(user.username === 'tetrisguy263');
+        } catch (error) {
+            console.error('Error fetching user details:', error);
         }
     }, []);
 
@@ -105,17 +108,18 @@ const Map = () => {
         mapRef.current = map;
 
         fetchUserLocation().then(location => {
-            setUserLocation(location);
             if (location) {
                 fetchCoordinates(location.zipcode).then(coords => {
                     map.flyTo({
                         center: [coords.longitude, coords.latitude],
                         zoom: 10
                     });
-                    initialCoordinatesRef.current = coords; // Store initial coordinates
+                    setUserLocation(coords);
                 });
             }
         });
+
+        fetchUserDetails();
 
         const handleMapClick = (e) => {
             const { lng, lat } = e.lngLat;
@@ -139,7 +143,7 @@ const Map = () => {
             map.off('click', handleMapClick);
             map.remove();
         };
-    }, [fetchUserLocation, fetchCoordinates, reloadMap]);
+    }, [fetchUserLocation, fetchCoordinates, fetchUserDetails, reloadMap]);
 
     useEffect(() => {
         if (mapLoaded) {
@@ -179,24 +183,6 @@ const Map = () => {
         }
     };
 
-    const handleDelete = async (locationId, locationName) => {
-        const confirmDelete = window.confirm(`Are you sure you want to delete "${locationName}"?`);
-        if (confirmDelete) {
-            try {
-                const token = localStorage.getItem('token');
-                await axios.delete(`http://localhost:3003/api/locations/${locationId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                setLocations(prevLocations => prevLocations.filter(location => location.id !== locationId));
-                setReloadMap(prev => !prev); // Toggle reloadMap to trigger a re-render
-            } catch (error) {
-                console.error('Error deleting location:', error);
-            }
-        }
-    };
-
     const handleChange = (e) => {
         const { name, value } = e.target;
         let formattedValue = value;
@@ -223,9 +209,9 @@ const Map = () => {
     };
 
     const resetMapView = () => {
-        if (mapRef.current && initialCoordinatesRef.current) {
+        if (mapRef.current && userLocation) {
             mapRef.current.flyTo({
-                center: [initialCoordinatesRef.current.longitude, initialCoordinatesRef.current.latitude],
+                center: [userLocation.longitude, userLocation.latitude],
                 zoom: 10
             });
         }
@@ -240,10 +226,27 @@ const Map = () => {
         }
     };
 
+    const handleDelete = async (locationId, locationName) => {
+        if (window.confirm(`Are you sure you want to delete "${locationName}"?`)) {
+            try {
+                const token = localStorage.getItem('token');
+                await axios.delete(`http://localhost:3003/api/locations/${locationId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                setLocations(prevLocations => prevLocations.filter(location => location.id !== locationId));
+                setReloadMap(prev => !prev); // Trigger a re-render to update map
+            } catch (error) {
+                console.error('Error deleting location:', error);
+            }
+        }
+    };
+
     return (
-        <div className="p-4">
-            <div id="map-container" className="w-full h-96 mb-4"></div>
-            <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+            <div id="map-container" style={{ width: '100%', height: '400px' }}></div>
+            <form onSubmit={handleSubmit}>
                 <input
                     type="text"
                     name="name"
@@ -251,14 +254,14 @@ const Map = () => {
                     onChange={handleChange}
                     placeholder="Location Name"
                     required
-                    className="border p-2 w-full"
+                    className="block mb-2"
                 />
                 <select
                     name="service_type"
                     value={formData.service_type}
                     onChange={handleChange}
                     required
-                    className="border p-2 w-full"
+                    className="block mb-2"
                 >
                     <option value="">Select Service Type</option>
                     <option value="In patient NA">In patient NA</option>
@@ -275,7 +278,7 @@ const Map = () => {
                     value={formData.street_address}
                     onChange={handleChange}
                     placeholder="Street Address"
-                    className="border p-2 w-full"
+                    className="block mb-2"
                 />
                 <input
                     type="text"
@@ -286,28 +289,17 @@ const Map = () => {
                     required
                     pattern="\d{3}-\d{3}-\d{4}"
                     title="Phone number must be in the format: 215-276-2132"
-                    className="border p-2 w-full"
+                    className="block mb-2"
                 />
-                <div className="space-x-2">
-                    <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">Add Location</button>
-                    {tempMarkerRef.current && <button type="button" onClick={handleCancel} className="bg-red-500 text-white px-4 py-2 rounded">Cancel</button>}
-                </div>
+                <button type="submit" className="block mb-2">Add Location</button>
+                {tempMarkerRef.current && <button type="button" onClick={handleCancel} className="block mb-2">Cancel</button>}
             </form>
-            <button onClick={resetMapView} className="mt-4 bg-gray-500 text-white px-4 py-2 rounded">Reset Map View</button>
-            <ul className="mt-4 space-y-2">
+            <button onClick={resetMapView} className="block mb-2">Reset Map View</button>
+            <ul>
                 {locations.map(location => (
-                    <li key={location.id} className="flex justify-between items-center">
-                        <div onClick={() => handleListItemClick(location)} className="cursor-pointer text-blue-600 underline">
-                            {location.name} - {location.service_type} - {location.street_address} - {location.phone_number}
-                        </div>
-                        {user && user.isAdmin && (
-                            <button
-                                onClick={() => handleDelete(location.id, location.name)}
-                                className="bg-red-500 text-white px-2 py-1 rounded"
-                            >
-                                Delete
-                            </button>
-                        )}
+                    <li key={location.id} onClick={() => handleListItemClick(location)} style={{ cursor: 'pointer', color: 'blue', textDecoration: 'underline' }}>
+                        {location.name} - {location.service_type} - {location.street_address} - {location.phone_number}
+                        {isAdmin && <button onClick={() => handleDelete(location.id, location.name)} className="ml-2 text-red-500">Delete</button>}
                     </li>
                 ))}
             </ul>

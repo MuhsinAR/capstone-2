@@ -8,7 +8,7 @@ const { authenticateToken } = require('./middleware/authMiddleware');
 
 const app = express();
 const PORT = 3003;
-const JWT_SECRET = 'your_jwt_secret_key';
+const JWT_SECRET = 'central263';
 
 app.use(cors());
 app.use(express.json());
@@ -139,10 +139,12 @@ app.get('/api/locations', (req, res) => {
 
 app.post('/api/locations', authenticateToken, (req, res) => {
   const { name, service_type, street_address, phone_number, latitude, longitude } = req.body;
-  const insertQuery = 'INSERT INTO locations (name, service_type, street_address, phone_number, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?)';
-  db.run(insertQuery, [name, service_type, street_address, phone_number, latitude, longitude], function(err) {
+  const username = req.user.username; // Get username from authenticated user
+
+  const insertQuery = 'INSERT INTO locations (name, service_type, street_address, phone_number, latitude, longitude, username) VALUES (?, ?, ?, ?, ?, ?, ?)';
+  db.run(insertQuery, [name, service_type, street_address, phone_number, latitude, longitude, username], function(err) {
     if (err) {
-      console.error('Error adding location:', err);
+      console.error('Error adding location:', err.message);
       return res.status(500).json({ error: 'Internal Server Error' });
     }
     res.status(201).json({
@@ -152,7 +154,8 @@ app.post('/api/locations', authenticateToken, (req, res) => {
       street_address,
       phone_number,
       latitude,
-      longitude
+      longitude,
+      username
     });
   });
 });

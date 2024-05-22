@@ -1,7 +1,15 @@
 const sqlite3 = require('sqlite3').verbose();
+const fs = require('fs');
+const path = require('path');
 
 // Path to the SQLite database file
-const DB_PATH = './src/db/users.db';
+const DB_PATH = path.resolve(__dirname, './users.db'); // Use absolute path
+
+// Ensure the directory exists
+const dbDir = path.dirname(DB_PATH);
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
 
 // Connect to SQLite database
 const db = new sqlite3.Database(DB_PATH, (err) => {
