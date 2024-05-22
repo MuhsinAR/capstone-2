@@ -1,13 +1,64 @@
+/* index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  background-color: #F1FAEE; /* Soft Gray Background */
+  color: #333; /* Darker text color for readability */
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+p {
+  max-width: 60%;
+  line-height: 1.6; /* Improve readability */
+}
+
+.container {
+  padding: 20px; /* Add some padding for better spacing */
+}
+
+a {
+  color: #457B9D; /* Calm Green for links */
+}
+
+a:hover {
+  color: #A8DADC; /* Cool Blue on hover */
+}
+
+button {
+  background-color: #457B9D; /* Calm Green */
+  color: #FFF;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #A8DADC; /* Cool Blue on hover */
+}
+
+/* Apply color scheme */
+.bg-primary {
+  background-color: #457B9D; /* Calm Green */
+}
+
+.bg-secondary {
+  background-color: #F1FAEE; /* Soft Gray Background */
+}
+
+.text-primary {
+  color: #457B9D; /* Calm Green */
+}
+
+.text-secondary {
+  color: #333; /* Darker text color for readability */
+}
+
+.link-primary {
+  color: #457B9D; /* Calm Green for links */
+}
+
+.link-primary:hover {
+  color: #A8DADC; /* Cool Blue on hover */
 }
