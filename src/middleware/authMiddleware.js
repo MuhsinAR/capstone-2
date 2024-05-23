@@ -10,7 +10,7 @@ function authenticateToken(req, res, next) {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'central263');
     req.user = decoded; // Attach user data to the request object
 
     // Check if the user is admin
